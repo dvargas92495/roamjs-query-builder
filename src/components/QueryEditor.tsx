@@ -214,6 +214,49 @@ const QueryCondition = ({
 }) => {
   return (
     <div style={{ display: "flex", margin: "8px 0", alignItems: "baseline" }}>
+      <MenuItemSelect
+        popoverProps={{
+          className: "roamjs-query-condition-type",
+        }}
+        activeItem={con.type}
+        items={["or", "not or", "clause", "not"]}
+        onItemSelect={(value) => {
+          (((con.type === "or" || con.type === "not or") &&
+            (value === "clause" || value === "not")) ||
+          ((value === "or" || value === "not or") &&
+            (con.type === "clause" || con.type === "not"))
+            ? Promise.all(
+                getShallowTreeByParentUid(con.uid).map((c) =>
+                  deleteBlock(c.uid)
+                )
+              ).then(() => updateBlock({ uid: con.uid, text: value }))
+            : updateBlock({
+                uid: con.uid,
+                text: value,
+              })
+          ).then(() => {
+            setConditions(
+              conditions.map((c) =>
+                c.uid === con.uid
+                  ? value === "clause" || value === "not"
+                    ? {
+                        uid: c.uid,
+                        type: value,
+                        source: (c as QBClauseData).source || "",
+                        target: (c as QBClauseData).target || "",
+                        relation: (c as QBClauseData).relation || "",
+                      }
+                    : {
+                        uid: c.uid,
+                        type: value,
+                        conditions: (c as QBNestedData).conditions || [],
+                      }
+                  : c
+              )
+            );
+          });
+        }}
+      />
       {(con.type === "clause" || con.type === "not") && (
         <QueryClause
           con={con}
@@ -279,7 +322,7 @@ const QuerySelection = ({
       </div>
       <span
         style={{
-          minWidth: 72,
+          minWidth: 144,
           display: "inline-block",
           fontWeight: 600,
         }}
